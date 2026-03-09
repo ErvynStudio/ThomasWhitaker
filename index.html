@@ -1,0 +1,443 @@
+<!doctype html>
+<html lang="pl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Kronika Gangu</title>
+
+<style>
+  :root{
+    --uiText:#f4e7c9;
+    --uiBorder: rgba(198,161,91,.55);
+    --uiBg: rgba(0,0,0,.42);
+    --shadow: rgba(0,0,0,.45);
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    display:grid;
+    place-items:center;
+    background:
+      radial-gradient(1200px 600px at 50% 20%, rgba(255,200,120,.08), transparent 60%),
+      linear-gradient(180deg,#0b0705,#050302);
+    font-family:Georgia,serif;
+    color:white;
+  }
+
+  .wrap{
+    width:min(1900px, 98vw);
+    display:grid;
+    justify-items:center;
+    gap:16px;
+    padding:18px 0 18px;
+  }
+
+  /* =========================
+     KSIĘGA
+  ========================= */
+  .book{
+    width:min(1700px,96vw);
+    aspect-ratio:2820/2250;
+    position:relative;
+    perspective:2600px;
+    border-radius:20px;
+    box-shadow: 0 30px 90px var(--shadow);
+  }
+
+  /* cień stołu: nie łap klików */
+  .book::after{
+    content:"";
+    position:absolute;
+    left:50%;
+    bottom:-70px;
+    width:70%;
+    height:90px;
+    transform:translateX(-50%);
+    background:radial-gradient(ellipse,rgba(0,0,0,.6),transparent 70%);
+    filter:blur(10px);
+    pointer-events:none;
+    z-index:-1;
+  }
+
+  /* UWAGA: stage NIE centruje zawartości */
+  .stage{
+    position:absolute;
+    inset:0;
+    border-radius:20px;
+    overflow:hidden;
+    transform-style:preserve-3d;
+  }
+
+  /* =========================
+     ZAMKNIĘTA OKŁADKA
+  ========================= */
+  .closed{
+    position:absolute;
+    inset:0;
+    display:grid;
+    place-items:center;
+    z-index:2;
+  }
+
+  .cover{
+    height:95%;
+    aspect-ratio:1410/2250;
+    background:var(--cover) center/contain no-repeat;
+    background-color: rgba(0,0,0,.25);
+    border-radius:16px;
+    box-shadow:0 20px 70px rgba(0,0,0,.4);
+    cursor:pointer;
+    position:relative;
+  }
+
+  .cover::before{
+    content:"";
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:-20px;
+    width:40px;
+    background:
+      radial-gradient(closest-side at 60% 50%,
+        rgba(0,0,0,.7),
+        rgba(0,0,0,.2) 55%,
+        rgba(0,0,0,0) 80%);
+    pointer-events:none;
+  }
+
+  .hint{
+    position:absolute;
+    left:50%;
+    bottom:18px;
+    transform:translateX(-50%);
+    background: rgba(0,0,0,.38);
+    border: 1px solid rgba(255,255,255,.10);
+    color: rgba(244,231,201,.92);
+    padding:10px 14px;
+    border-radius:12px;
+    font-size:13px;
+    letter-spacing:.03em;
+    backdrop-filter: blur(2px);
+    pointer-events:none;
+    white-space:nowrap;
+  }
+
+  /* =========================
+     OTWARTA KSIĘGA
+  ========================= */
+  .open{
+    position:absolute;
+    inset:0;
+    display:none;
+    z-index:1;
+  }
+  .open.on{ display:block; }
+
+  /* KLUCZ: spread zawsze zajmuje CAŁĄ księgę */
+  .spread{
+    position:absolute;
+    inset:0;
+    display:grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .page{
+    position:relative;
+    overflow:hidden;
+    background:#111;
+    height:100%;
+  }
+
+  .page img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+    background: rgba(0,0,0,.10);
+  }
+
+  /* cień grzbietu */
+  .spine{
+    position:absolute;
+    top:0;
+    bottom:0;
+    left:50%;
+    width:90px;
+    transform:translateX(-50%);
+    background:
+      radial-gradient(closest-side at 50% 50%,
+        rgba(0,0,0,.65),
+        rgba(0,0,0,.2) 55%,
+        rgba(0,0,0,0) 75%);
+    pointer-events:none;
+    mix-blend-mode:multiply;
+    z-index:3;
+  }
+
+  /* =========================
+     FLIP (następna strona)
+  ========================= */
+  .turn-layer{
+    position:absolute;
+    inset:0;
+    display:none;
+    pointer-events:none;
+    z-index:4;
+  }
+  .turn-layer.active{ display:block; }
+
+  .turn{
+    position:absolute;
+    top:0;
+    bottom:0;
+    right:0;
+    width:50%;
+    transform-origin:left;
+    transform-style:preserve-3d;
+    box-shadow: 0 14px 50px rgba(0,0,0,.38);
+  }
+
+  .face{
+    position:absolute;
+    inset:0;
+    backface-visibility:hidden;
+    overflow:hidden;
+  }
+
+  .face img{
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    display:block;
+    background: rgba(0,0,0,.10);
+  }
+
+  .back{ transform:rotateY(180deg); }
+
+  .curl-shadow{
+    position:absolute;
+    inset:0;
+    background: linear-gradient(90deg, rgba(0,0,0,0), rgba(0,0,0,.28), rgba(0,0,0,0));
+    opacity:0;
+    mix-blend-mode:multiply;
+    pointer-events:none;
+  }
+
+  @keyframes flip{
+    0%{ transform:rotateY(0deg); }
+    35%{ transform:rotateY(-70deg); }
+    100%{ transform:rotateY(-180deg); }
+  }
+  @keyframes curl{
+    0%{ opacity:0; }
+    20%{ opacity:.6; }
+    100%{ opacity:0; }
+  }
+
+  .turn.anim{ animation:flip .7s cubic-bezier(.2,.85,.2,1) both; }
+  .turn.anim .curl-shadow{ animation:curl .7s ease both; }
+
+  /* =========================
+     PRZYCISKI
+  ========================= */
+  .controls{
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+    justify-content:center;
+    align-items:center;
+  }
+
+  button{
+    padding:10px 18px;
+    background:var(--uiBg);
+    border:1px solid var(--uiBorder);
+    color:var(--uiText);
+    border-radius:12px;
+    cursor:pointer;
+    font-family:inherit;
+    letter-spacing:.02em;
+  }
+  button:hover{ background:rgba(0,0,0,.60); }
+
+  .status{
+    opacity:.85;
+    font-size:13px;
+    text-align:center;
+  }
+
+  /* Mobile: jak chcesz zawsze DWIE strony, usuń ten media query.
+     Teraz na mobile specjalnie pokazuje jedną dla czytelności. */
+  @media (max-width: 720px){
+    .book{ width:min(560px, 96vw); }
+    .spread{ grid-template-columns:1fr; }
+    .page.right{ display:none; }
+    .turn{ width:100%; right:auto; left:0; transform-origin:left; }
+    .spine{ width:56px; }
+    .cover{ height:92%; }
+  }
+</style>
+</head>
+
+<body>
+<div class="wrap">
+
+  <div class="book" id="book">
+    <div class="stage">
+
+      <div class="closed" id="closed">
+        <div class="cover" id="cover">
+          <div class="hint">Kliknij lub Enter, żeby otworzyć</div>
+        </div>
+      </div>
+
+      <div class="open" id="open">
+        <div class="spread">
+          <div class="page left"><img id="leftImg" alt="lewa strona"></div>
+          <div class="page right"><img id="rightImg" alt="prawa strona"></div>
+        </div>
+
+        <div class="spine"></div>
+
+        <div class="turn-layer" id="turnLayer">
+          <div class="turn" id="turn">
+            <div class="face"><img id="turnFront" alt="front"></div>
+            <div class="face back"><img id="turnBack" alt="back"></div>
+            <div class="curl-shadow"></div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <div class="controls">
+    <button id="btnOpen">Otwórz</button>
+    <button id="btnPrev">← Poprzednia</button>
+    <button id="btnNext">Następna →</button>
+    <button id="btnClose">Zamknij</button>
+  </div>
+
+  <div class="status" id="status">
+    Enter otwiera/zamyka • ← → przewracają strony • Esc zamyka
+  </div>
+
+</div>
+
+<script>
+  const ASSETS = {
+    coverClosed: "https://i.imgur.com/WvlzKL1.jpeg",
+    spreads: [
+      { left: "https://i.imgur.com/FBnTAyF.jpeg", right: "https://i.imgur.com/KZNrGKp.jpeg" },
+      { left: "https://i.imgur.com/dP2GPZH.jpeg", right: "https://i.imgur.com/vRzovty.jpeg" },
+      { left: "https://i.imgur.com/Kmt2p3f.jpeg", right: "https://i.imgur.com/82ffcyg.jpeg" },
+    ]
+  };
+
+  document.documentElement.style.setProperty("--cover", `url("${ASSETS.coverClosed}")`);
+
+  const closed = document.getElementById("closed");
+  const open = document.getElementById("open");
+  const cover = document.getElementById("cover");
+
+  const leftImg = document.getElementById("leftImg");
+  const rightImg = document.getElementById("rightImg");
+
+  const turnLayer = document.getElementById("turnLayer");
+  const turn = document.getElementById("turn");
+  const turnFront = document.getElementById("turnFront");
+  const turnBack = document.getElementById("turnBack");
+
+  const btnOpen = document.getElementById("btnOpen");
+  const btnPrev = document.getElementById("btnPrev");
+  const btnNext = document.getElementById("btnNext");
+  const btnClose = document.getElementById("btnClose");
+  const status = document.getElementById("status");
+
+  let isOpen = false;
+  let index = 0;
+  let busy = false;
+
+  function render(){
+    const s = ASSETS.spreads[index];
+    leftImg.src = s?.left ?? "";
+    rightImg.src = s?.right ?? "";
+    status.textContent = isOpen
+      ? `Rozkładówka: ${index+1} / ${ASSETS.spreads.length}`
+      : `Enter otwiera/zamyka • ← → przewracają strony • Esc zamyka`;
+  }
+
+  function openBook(){
+    if(busy) return;
+    isOpen = true;
+    index = 0;
+    closed.style.display = "none";
+    open.classList.add("on");
+    render();
+  }
+
+  function closeBook(){
+    if(busy) return;
+    isOpen = false;
+    open.classList.remove("on");
+    closed.style.display = "grid";
+    turnLayer.classList.remove("active");
+    busy = false;
+    render();
+  }
+
+  function flipNext(){
+    if(!isOpen || busy) return;
+    if(index >= ASSETS.spreads.length - 1) return;
+
+    busy = true;
+
+    const current = ASSETS.spreads[index];
+    const nextS = ASSETS.spreads[index + 1];
+
+    turnFront.src = current.right; // aktualna prawa
+    turnBack.src  = nextS.left;    // następna lewa
+
+    turnLayer.classList.add("active");
+
+    turn.classList.remove("anim");
+    void turn.offsetWidth;
+    turn.classList.add("anim");
+
+    const onEnd = () => {
+      turn.removeEventListener("animationend", onEnd);
+      turnLayer.classList.remove("active");
+      index++;
+      busy = false;
+      render();
+    };
+    turn.addEventListener("animationend", onEnd);
+  }
+
+  function prevPage(){
+    if(!isOpen || busy) return;
+    if(index <= 0) return;
+    index--;
+    render();
+  }
+
+  cover.addEventListener("click", openBook);
+  btnOpen.addEventListener("click", openBook);
+  btnClose.addEventListener("click", closeBook);
+  btnNext.addEventListener("click", flipNext);
+  btnPrev.addEventListener("click", prevPage);
+
+  document.addEventListener("keydown", (e) => {
+    if(e.key === "Enter") isOpen ? closeBook() : openBook();
+    if(e.key === "Escape") closeBook();
+    if(e.key === "ArrowRight") flipNext();
+    if(e.key === "ArrowLeft") prevPage();
+  });
+
+  render();
+</script>
+</body>
+</html>
